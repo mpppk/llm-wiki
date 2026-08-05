@@ -119,6 +119,9 @@ Cosense の価値はリンクグラフにある。リンクの質がそのまま
 - **ハッシュタグ記法は `#raw` にのみ使う。** `#foo` と `[foo]` は動作が同じなので、
   それ以外はすべてリンク記法に統一して揺れをなくす。`#raw` は原文ページの目印を
   本文冒頭で視認しやすくするための例外である（§6）。
+- **`[summary]` と `[thesis]` へは、その型の instance 以外からリンクしない。**
+  リンクしたページが Infobox の表に捏造行として現れるため（§5）。
+  他の型定義ページの本文などで言及するときは、平文で `summary` / `thesis` と書く。
 - **目次ページ・index ページを作らない。** 被リンクと Infobox（§5）が自動インデックスになる。
   手書きの目次は更新漏れで必ず腐る。
 - リンクは「そこから辿りたいもの」に限る。文中の全単語をリンクにしない。
@@ -153,7 +156,7 @@ cosense browseRelatedPages https://scrapbox.io/niboshi-llm-wiki/summary
 
 Cosense の Infobox 抽出は **LLM ベース**であり、構文的な転記ではない。
 `browsePage` のヘルプにも "hallucination または truncated と判定された Infobox は除外する"
-とある通り、抽出結果は常に正しいとは限らない。実際に次の 2 点を確認した。
+とある通り、抽出結果は常に正しいとは限らない。実際に次の 3 点を確認した。
 
 1. **反映に 1 分程度のラグがある。** ページ作成直後に `browseRelatedPages` を叩くと、
    行は現れるが値が全て空になる。ingest 直後の確認は一呼吸おく。
@@ -162,8 +165,15 @@ Cosense の Infobox 抽出は **LLM ベース**であり、構文的な転記で
    **列に対応する記述が無くても値が捏造される。**
    実測例: Infobox を持たない raw ページが、summary ページの表に行として現れ、
    本文に存在しない `gist` `kind` `raw` の値が生成された。
+3. **その結果、`summary` / `thesis` にリンクしただけのページが索引を汚す。**
+   実測例: 型定義ページ 5 枚が説明文中で `[summary]` にリンクしていただけで、
+   summary の表に、各ページの本文から生成された偽の `gist` `raw` `url` を持つ 5 行が並んだ。
+   このため §4 に「instance 以外から `[summary]` / `[thesis]` へリンクしない」を置いている。
+   唯一の例外は入口ページ `[このwikiについて]` で、人間がそこから表へ辿り着けることを
+   優先し、1 行の混入を許容している。
 
-したがって **信用してよいのは型定義ページ（`summary` / `thesis`）の表だけ**である。
+したがって **信用してよいのは型定義ページ（`summary` / `thesis`）の表だけ**であり、
+その表ですら instance でない行が混ざりうる。
 個々の summary / thesis ページに対して `browseRelatedPages` を使ってはならない（§8）。
 
 ## 6. 原文（raw）ページの規約
@@ -337,7 +347,7 @@ Cosense では機械的に検出できる。定期的に実行する。
 
 | 検査 | コマンド |
 |---|---|
-| 孤立ページ | `cosense listPages <projectUrl> --sort linked` の末尾（`linked: 0`） |
+| 孤立ページ | `cosense listPages <projectUrl> --sort linked` の末尾（`linked: 0`）。入口ページ `[このwikiについて]` は pin 済みのため除く |
 | 取り込み漏れの原文 | 上記のうちタイトルが `_raw_` で終わるもの（summary が未作成） |
 | リンク未付与の原文 | 各原文の `cosense list1hopLinks` が summary 1 本しか返さないもの |
 | 育ちすぎたハブ | `--sort linked` の先頭。pageRank 上位ページは分割を検討する |
