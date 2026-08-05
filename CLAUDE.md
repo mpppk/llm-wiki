@@ -141,12 +141,30 @@ cosense browseRelatedPages https://scrapbox.io/niboshi-llm-wiki/summary
 |---|---|
 | `[summary]` | `gist` / `kind` / `author` / `published` / `ingested` / `raw` / `url` / `credibility` |
 | `[thesis]` | `confidence` / `supported_by` / `refuted_by` / `reviewed` |
-| `#raw` | `ingested` / `url` / `format` |
 
 - `credibility`: `peer-reviewed` / `preprint` / `primary` / `secondary` / `blog` から選ぶ。
 - `confidence`: `high` / `medium` / `low` / `open` の 4 段階。
 - `reviewed` は **確信度を見直した日**であり、Cosense が自動で付ける `Updated` 列とは別物。
   誤字修正でも `Updated` は更新されてしまうため、陳腐化の検出には使えない（§11 lint）。
+- **raw ページに Infobox を持たせない。** `ingested` / `url` は summary 側と重複し、
+  持たせても下記の制約でノイズが増えるだけである。
+
+### 制約（2026-08-05 に実地検証）
+
+Cosense の Infobox 抽出は **LLM ベース**であり、構文的な転記ではない。
+`browsePage` のヘルプにも "hallucination または truncated と判定された Infobox は除外する"
+とある通り、抽出結果は常に正しいとは限らない。実際に次の 2 点を確認した。
+
+1. **反映に 1 分程度のラグがある。** ページ作成直後に `browseRelatedPages` を叩くと、
+   行は現れるが値が全て空になる。ingest 直後の確認は一呼吸おく。
+2. **`table:infobox` を書いたページは、それ自体が定義ページになる。**
+   そのページにリンクしている全ページが表の行として並び、
+   **列に対応する記述が無くても値が捏造される。**
+   実測例: Infobox を持たない raw ページが、summary ページの表に行として現れ、
+   本文に存在しない `gist` `kind` `raw` の値が生成された。
+
+したがって **信用してよいのは型定義ページ（`summary` / `thesis`）の表だけ**である。
+個々の summary / thesis ページに対して `browseRelatedPages` を使ってはならない（§8）。
 
 ## 6. 原文（raw）ページの規約
 
@@ -156,8 +174,8 @@ cosense browseRelatedPages https://scrapbox.io/niboshi-llm-wiki/summary
 
 - **タイトルは `<原題>_raw_`。**
   例: summary `Attention Is All You Need` / raw `Attention Is All You Need_raw_`。
-- **本文 1 行目は `#raw`。** 2 行目は対応する `[summary]` ページへのリンク、3 行目に Infobox。
-  原文本文はその下に置く。
+- **本文 1 行目は `#raw`。** 2 行目は対応する `[summary]` ページへのリンク。
+  原文本文はその下に置く。**Infobox は書かない**（§5）。出典のメタデータは summary 側が持つ。
 - 極端に長い原文は章単位で分割する。連番はタイトル中に入れ、`_raw_` は必ず末尾に残す。
   例: `<原題> (1/3)_raw_`。
 
@@ -260,10 +278,13 @@ caveats
 2. `cosense searchFullText <projectUrl> <query>` — 語句が確定しているとき。
    **タイトルが `_raw_` で終わるページは、この段階では読み飛ばす。**
 3. `cosense browsePage <pageUrl>` で本体を読む。
-4. `cosense browseRelatedPages <pageUrl>` / `search2hopLinks` で周辺を辿る。
+4. `cosense list1hopLinks` / `search1hopLinks` / `search2hopLinks` で周辺を辿る。
    単独ページでは見えない文脈がここで浮かぶ。
    **concept ページの被リンクには原文ページが混ざる。** これは「この概念に言及している原文」の
    一覧であり、ソースを横断して裏取りしたいときに使う。
+   **`browseRelatedPages` は型定義ページ（`summary` / `thesis` / `raw`）にのみ使う。**
+   Infobox を持つページに使うと、先頭に捏造値を含む表が出る（§5）。
+   個々の summary / thesis の周辺を見るときは `list1hopLinks` を使う。
 5. **引用の裏取りや、summary に落ちた情報を拾う必要があるときだけ原文ページに降りる。**
 
 原文ページを常に読むと、その分だけ確実にコンテキストを浪費する。既定では降りない。
@@ -318,7 +339,7 @@ Cosense では機械的に検出できる。定期的に実行する。
 |---|---|
 | 孤立ページ | `cosense listPages <projectUrl> --sort linked` の末尾（`linked: 0`） |
 | 取り込み漏れの原文 | 上記のうちタイトルが `_raw_` で終わるもの（summary が未作成） |
-| リンク未付与の原文 | `cosense browseRelatedPages .../raw` の表と、各原文の 1-hop リンク数 |
+| リンク未付与の原文 | 各原文の `cosense list1hopLinks` が summary 1 本しか返さないもの |
 | 育ちすぎたハブ | `--sort linked` の先頭。pageRank 上位ページは分割を検討する |
 | 書くべきページ | `searchVector` の `exists: false`、および空リンクの被リンク数 |
 | 未解決の矛盾 | `cosense searchFullText <projectUrl> '⚠'` |
