@@ -288,11 +288,18 @@ caveats
 
 1. `cosense searchVector <projectUrl> <query>` — 意味の近いページを探す。
    `exists: false` は未作成ページ（空リンク）なので、書くべきページの発見にも使う。
+   **これは意味検索であり、完全一致の存在確認には使えない。**
+   `SEP-2322` を問い合わせても top-1 が `SEP-2567` になる（2026-08-05 実測）。
+   識別子のように文字列が似ていて意味が近いページ群では特に区別できない。
+   特定タイトルが存在するかは `readPage` でページ本文を読んで確かめる。
 2. `cosense searchFullText <projectUrl> <query>` — 語句が確定しているとき。
    **タイトルが `_raw_` で終わるページは、この段階では読み飛ばす。**
 3. `cosense browsePage <pageUrl>` で本体を読む。
 4. `cosense list1hopLinks` / `search1hopLinks` / `search2hopLinks` で周辺を辿る。
    単独ページでは見えない文脈がここで浮かぶ。
+   **本文の無いページ（空リンク）は `list1hopLinks` に現れない。**
+   リンクグラフ上は繋がっており、ページからクリックでは辿れる。
+   空リンクを張ったかどうかの確認は、リンク元ページの本文を読む。
    **concept ページの被リンクには原文ページが混ざる。** これは「この概念に言及している原文」の
    一覧であり、ソースを横断して裏取りしたいときに使う。
    **`browseRelatedPages` は型定義ページ（`summary` / `thesis` / `raw`）にのみ使う。**
@@ -332,7 +339,9 @@ caveats
    リンクを張る（§6）。
 5. 出てきた `[concept]` `[person]` `[organization]` ページを新規作成、または既存ページに追記する。
 6. 関係する `[thesis]` の `supported_by` / `refuted_by` / `confidence` / `reviewed` を更新する。
-   新しいテーゼが立つなら `[thesis]` ページを新規作成する。
+   新しいテーゼが立つなら `[thesis]` ページを新規作成し、
+   **関係する `[concept]` ページから 1 本リンクを張る。**
+   thesis からは summary へ張るだけなので、そのままでは被リンク 0 の孤立ページになる（§4）。
 7. 日付ページに 1 行追記する。
 
 1 ソースの取り込みで 10 ページ前後に触ることになる。それが正常である。
@@ -350,9 +359,9 @@ Cosense では機械的に検出できる。定期的に実行する。
 
 | 検査 | コマンド |
 |---|---|
-| 孤立ページ | `cosense listPages <projectUrl> --sort linked` の末尾（`linked: 0`）。入口ページ `[このwikiについて]` は pin 済みのため除く |
+| 孤立ページ | `cosense listPages <projectUrl> --sort linked` の末尾（`linked: 0`）。入口ページ `[このwikiについて]` と `[log]` の日付ページは被リンクを持たないのが正常なので除く |
 | 取り込み漏れの原文 | 上記のうちタイトルが `_raw_` で終わるもの（summary が未作成） |
-| リンク未付与の原文 | 各原文の `cosense list1hopLinks` が summary 1 本しか返さないもの |
+| リンク未付与の原文 | 各原文の `cosense list1hopLinks` が summary 1 本しか返さないもの。空リンクは現れないので、疑わしければ本文を読む（§8） |
 | 育ちすぎたハブ | `--sort linked` の先頭。pageRank 上位ページは分割を検討する |
 | 書くべきページ | `searchVector` の `exists: false`、および空リンクの被リンク数 |
 | 未解決の矛盾 | `cosense searchFullText <projectUrl> '⚠'` |
