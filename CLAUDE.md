@@ -454,6 +454,12 @@ caveats
   該当行の直下にインデントして `⚠ [<summary のタイトル>] では〜としており矛盾` と書く。
 - 矛盾が解決したら、解決の根拠を書いた上で整理する。
 - `cosense searchFullText <projectUrl> '⚠'` で未解決の矛盾を一覧できる。
+  **結果からタイトルが `📄` で始まるページを除く。** 矛盾の注記は wiki 層にしか書かないので、
+  raw に出る `⚠` は原文が元から持っていた記号である（§6 改変の範囲）。
+  この検索は `⚠️`（異体字セレクタ `U+FE0F` 付き）にも当たる。Cosense の全文検索は空白を
+  区切りとして扱うため、`'⚠ '` のように末尾へ空白を足しても絞り込めない（2026-08-06 実地検証）。
+  同じ理由で、summary の `quotes` に `⚠️` を含む引用があると偽陽性になる。
+  原文ママの原則（§7）を優先し、その行は偽陽性として読み飛ばす。
 - 時点依存の記述には必ず「いつ時点の情報か」を書く。
 - 矛盾を見つけたら、対応する `[thesis]` の `confidence` と `reviewed` を更新する。
 
@@ -504,7 +510,7 @@ Cosense では機械的に検出できる。定期的に実行する。
 | リンク未付与の原文 | 各原文の `cosense list1hopLinks` が summary 1 本しか返さないもの。空リンクは現れないので、疑わしければ本文を読む（§8） |
 | 育ちすぎたハブ | `--sort linked` の先頭。pageRank 上位ページは分割を検討する |
 | 書くべきページ | `searchVector` の `exists: false`、および空リンクの被リンク数 |
-| 未解決の矛盾 | `cosense searchFullText <projectUrl> '⚠'` |
+| 未解決の矛盾 | `cosense searchFullText <projectUrl> '⚠'`。タイトルが `📄` で始まるページは除く（§9） |
 | ソースの網羅性 | `cosense browseRelatedPages .../summary` の表を眺める |
 | 確信度の陳腐化 | `cosense browseRelatedPages .../thesis` の表で `reviewed` が古いもの |
 
